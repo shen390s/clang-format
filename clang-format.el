@@ -14,7 +14,7 @@
 ;; *Location of the clang-format binary. If it is on your PATH, a full path name
 ;; need not be specified.
 (defvar clang-format-binary "clang-format")
-(defvar clang-format-style-option  "llvm")
+(defvar clang-format-style-option  nil)
 
 (defun clang-format-region ()
   "Use clang-format to format the currently active region."
@@ -39,13 +39,21 @@
 	     (orig-window-starts (mapcar #'window-start orig-windows))
 	     (orig-point (point)))
 	(unwind-protect
-	    (call-process-region (point-min) (point-max) clang-format-binary
-				 t (list t nil) nil
-				 "-offset" (number-to-string (1- begin))
-				 "-length" (number-to-string (- end begin))
-				 "-cursor" (number-to-string (1- (point)))
-				 "-assume-filename" (buffer-file-name)
-				 "-style" clang-format-style-option)
+	    (if (and clang-format-style-option
+		     (not (string-empty-p clang-format-style-option)))
+		(call-process-region (point-min) (point-max) clang-format-binary
+				     t (list t nil) nil
+				     "-offset" (number-to-string (1- begin))
+				     "-length" (number-to-string (- end begin))
+				     "-cursor" (number-to-string (1- (point)))
+				     "-assume-filename" (buffer-file-name)
+				     "-style" clang-format-style-option)
+	      (call-process-region (point-min) (point-max) clang-format-binary
+				   t (list t nil) nil
+				   "-offset" (number-to-string (1- begin))
+				   "-length" (number-to-string (- end begin))
+				   "-cursor" (number-to-string (1- (point)))
+				   "-assume-filename" (buffer-file-name)))
 	  (goto-char (point-min))
 	  (let ((json-output (json-read-from-string
 			      (buffer-substring-no-properties
@@ -54,7 +62,7 @@
 	    (goto-char (1+ (cdr (assoc 'Cursor json-output))))
 	    (dotimes (index (length orig-windows))
 	      (set-window-start (nth index orig-windows)
-				(nth index orig-window-starts)))))))
-  (error "%s" (concat clang-format-binary " not found.")))
+				(nth index orig-window-starts))))))
+    (error "%s" (concat clang-format-binary " not found."))))
 
 (provide 'clang-format)
